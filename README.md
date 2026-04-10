@@ -113,7 +113,7 @@ grep "^## \[" wiki/log.md | tail -5
 ## Development
 
 ```bash
-pip install -e ".[dev]"
+pip install -e .
 pytest
 ```
 

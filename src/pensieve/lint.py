@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from pensieve.wiki import (
@@ -11,9 +11,6 @@ from pensieve.wiki import (
     index_path,
     log_path,
     outbound_links,
-    page_title,
-    wiki_dir,
-    WIKILINK_RE,
 )
 
 # ---------------------------------------------------------------------------
@@ -31,6 +28,10 @@ class LintIssue:
     def __str__(self) -> str:
         loc = f"  [{self.path.name}]" if self.path else ""
         return f"[{self.severity.upper()}] {self.code}{loc}: {self.message}"
+
+    def dedup_key(self) -> tuple[str, str, str, Path | None]:
+        """Return a hashable key that uniquely identifies this issue for deduplication."""
+        return (self.severity, self.code, self.message, self.path)
 
 
 # ---------------------------------------------------------------------------
@@ -68,7 +69,6 @@ def check_orphan_pages(root: Path) -> list[LintIssue]:
     """
     issues: list[LintIssue] = []
     pages = all_wiki_pages(root)
-    stem_map = _page_stem_map(root)
 
     # Build a set of all link targets mentioned across all pages
     all_targets: set[str] = set()
@@ -101,17 +101,49 @@ def check_missing_log(root: Path) -> list[LintIssue]:
     return []
 
 
+def _normalize_index_reference(value: str) -> str:
+    """Normalize an index reference so it can be compared to a page stem."""
+    normalized = value.strip().lower()
+    if not normalized:
+        return ""
+    normalized = normalized.replace("\\", "/").split("/")[-1]
+    if normalized.endswith(".md"):
+        normalized = normalized[:-3]
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized
+
+
+def _index_mentions(idx: Path) -> set[str]:
+    """Collect explicit page mentions from index.md via wikilinks and table rows."""
+    mentions: set[str] = {
+        _normalize_index_reference(target)
+        for target in outbound_links(idx)
+        if _normalize_index_reference(target)
+    }
+    index_text = idx.read_text(encoding="utf-8")
+    for line in index_text.splitlines():
+        stripped = line.strip()
+        if "|" not in stripped:
+            continue
+        if re.fullmatch(r"[\s|:-]+", stripped):
+            continue
+        for cell in stripped.split("|"):
+            normalized = _normalize_index_reference(cell)
+            if normalized:
+                mentions.add(normalized)
+    return mentions
+
+
 def check_index_completeness(root: Path) -> list[LintIssue]:
     """Warn about wiki pages not mentioned in index.md."""
     issues: list[LintIssue] = []
     idx = index_path(root)
     if not idx.exists():
         return issues
-    index_text = idx.read_text(encoding="utf-8").lower()
+    mentioned_stems = _index_mentions(idx)
     for page in all_wiki_pages(root):
-        stem_lower = page.stem.lower()
-        # Accept either [[stem]] or plain stem mention
-        if f"[[{stem_lower}]]" not in index_text and stem_lower not in index_text:
+        stem_lower = _normalize_index_reference(page.stem)
+        if stem_lower not in mentioned_stems:
             issues.append(
                 LintIssue(
                     severity="warning",
@@ -136,4 +168,12 @@ def lint(root: Path) -> list[LintIssue]:
     all_issues.extend(check_broken_links(root))
     all_issues.extend(check_orphan_pages(root))
     all_issues.extend(check_index_completeness(root))
-    return all_issues
+
+    deduped_issues: list[LintIssue] = []
+    seen: set[tuple[str, str, str, Path | None]] = set()
+    for issue in all_issues:
+        key = issue.dedup_key()
+        if key not in seen:
+            seen.add(key)
+            deduped_issues.append(issue)
+    return deduped_issues

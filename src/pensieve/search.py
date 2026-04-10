@@ -7,11 +7,10 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
-from pensieve.wiki import all_wiki_pages, read_page, page_title, wiki_dir
+from pensieve.wiki import all_wiki_pages, read_page, page_title
 
 # ---------------------------------------------------------------------------
 # Tokenisation
@@ -138,16 +137,26 @@ _SENTENCE_RE = re.compile(r"[^.!?\n]+[.!?\n]?")
 
 
 def _make_snippet(tokens: list[str], query_tokens: list[str], raw_text: str, max_len: int = 200) -> str:
-    """Extract a sentence from *raw_text* that contains the most query terms."""
+    """Extract a sentence from *raw_text* that contains the most query terms.
+
+    Uses the pre-tokenised *tokens* to short-circuit when no query terms appear
+    in the document at all; in that case the first sentence is returned.
+    """
     query_set = set(query_tokens)
-    best_sentence = ""
-    best_hits = -1
-    for sentence in _SENTENCE_RE.finditer(raw_text):
-        s = sentence.group().strip()
-        hits = sum(1 for t in _tokenise(s) if t in query_set)
-        if hits > best_hits:
-            best_hits = hits
-            best_sentence = s
+    if not any(t in query_set for t in tokens):
+        first_sentence = _SENTENCE_RE.search(raw_text)
+        if first_sentence is None:
+            return ""
+        best_sentence = first_sentence.group().strip()
+    else:
+        best_sentence = ""
+        best_hits = -1
+        for sentence in _SENTENCE_RE.finditer(raw_text):
+            s = sentence.group().strip()
+            hits = sum(1 for t in _tokenise(s) if t in query_set)
+            if hits > best_hits:
+                best_hits = hits
+                best_sentence = s
     if not best_sentence:
         return ""
     if len(best_sentence) > max_len:

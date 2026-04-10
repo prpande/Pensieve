@@ -61,7 +61,7 @@ def main() -> None:
 
 
 @main.command()
-@click.argument("path", default=".", type=click.Path(path_type=Path))
+@click.argument("path", default=".", type=click.Path(file_okay=False, dir_okay=True, path_type=Path))
 def init(path: Path) -> None:
     """Initialise a new wiki inside PATH (default: current directory).
 

@@ -6,7 +6,7 @@ import re
 import textwrap
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -134,10 +134,9 @@ def build_index(root: Path) -> str:
     lines: list[str] = [_INDEX_HEADER]
     lines.append("| Page | Summary |\n| --- | --- |")
     for page in pages:
-        rel = page.relative_to(wiki_dir(root))
         title = page_title(page)
         summary = page_first_paragraph(page)
-        link = f"[[{page.stem}]]"
+        link = f"[[{page.stem}|{title}]]"
         lines.append(f"| {link} | {summary} |")
     lines.append("")
     return "\n".join(lines)
