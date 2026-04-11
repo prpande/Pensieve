@@ -62,8 +62,16 @@ The skill operates in two phases — **Discover & Index** (cheap) and **Fetch**
 - **--fetch \<path\>** — path to an existing index.json
 
 **Output:**
-- Markdown files at `raw/slack/scrape-<start>_<end>/<YYYY-MM-DD>/<channel-name>.md`
+- Markdown files at `raw/slack/scrape-<start>_<end>/<YYYY-MM-DD>/<channel-slug>--<channel-id>.md`
 - Updated index.json with status per channel-day
+
+**Filename rules:**
+- `channel-id` is the immutable Slack channel/conversation ID, always included
+- `channel-slug` is for readability: lowercase the display name, replace runs of
+  non-alphanumeric characters with `-`, trim leading/trailing `-`, use `channel`
+  if the result is empty (e.g. unnamed DMs)
+- The `channel-id` suffix makes filenames deterministic, filesystem-safe, and
+  stable across renames/collisions (including DMs/group DMs)
 
 **Hardcoded:** User ID `U07ENJD06T0` (pratyush.pande). This is a personal tool.
 
@@ -99,9 +107,10 @@ timestamp. The index status map has one entry per channel per day.
   "date_range": ["2026-04-07", "2026-04-11"],
   "created_at": "2026-04-11T10:30:00Z",
   "channels": {
-    "<channel_id>-<channel-name>": {
+    "<channel_id>": {
       "channel_id": "<channel_id>",
       "channel_name": "<channel-name>",
+      "channel_slug": "<slugified-name>",
       "type": "public_channel | private_channel | im | mpim",
       "hits": [
         {
@@ -114,7 +123,7 @@ timestamp. The index status map has one entry per channel per day.
     }
   },
   "status": {
-    "<channel_id>-<channel-name>": {
+    "<channel_id>": {
       "2026-04-07": "pending | done | error"
     }
   },
@@ -175,7 +184,7 @@ repeat lookups.
 
 **Step 5 — Write markdown file**
 
-Write to `raw/slack/scrape-<start>_<end>/<YYYY-MM-DD>/<channel-name>.md`.
+Write to `raw/slack/scrape-<start>_<end>/<YYYY-MM-DD>/<channel-slug>--<channel-id>.md`.
 
 **Step 6 — Update index**
 
@@ -274,13 +283,13 @@ _Scraped by pensieve slack-scrape on 2026-04-11_
 ```
 raw/slack/
   scrape-2026-04-07_2026-04-11/
-    index.json                          <- discovery index + resume state
+    index.json                                    <- discovery index + resume state
     2026-04-07/
-      engineering-general.md
-      dm-jane-smith.md
+      engineering-general--C0ABC123.md
+      dm-jane-smith--D0XYZ789.md
     2026-04-08/
-      engineering-general.md
-      project-alpha.md
+      engineering-general--C0ABC123.md
+      project-alpha--C0DEF456.md
     ...
 ```
 
