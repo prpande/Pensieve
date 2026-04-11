@@ -83,17 +83,11 @@ Then test skill discovery by starting a new Claude Code session and checking if 
 
 - [ ] **Step 4: Commit**
 
+Note: The skill lives outside the repo directory at `~/.claude/skills/slack-scrape/SKILL.md`. Do NOT commit the skill file to the Pensieve repo — it's a user-level Claude Code skill. The repo reference file (`SLACK-SCRAPE-SKILL.md`) will be created in Task 7.
+
 ```bash
 cd /c/src/Pensieve-slack-scrape
-git add -f "$HOME/.claude/skills/slack-scrape/SKILL.md"
-```
-
-Note: The skill lives outside the repo directory. We will NOT commit it to the Pensieve repo — it's a user-level Claude Code skill. Instead, just commit a note in the repo:
-
-```bash
-echo "Skill installed at: ~/.claude/skills/slack-scrape/SKILL.md" > SLACK-SCRAPE-SKILL.md
-git add SLACK-SCRAPE-SKILL.md
-git commit -m "feat: add slack-scrape skill skeleton with argument parsing"
+git commit --allow-empty -m "feat: add slack-scrape skill skeleton with argument parsing"
 ```
 
 ---
@@ -343,7 +337,7 @@ Print: `Fetching <channel_name> / <date> ...`
 
 Convert date boundaries to Unix timestamps using `user_tz`:
 - `day_start` = `<date> 00:00:00` in user_tz → Unix timestamp
-- `day_end` = `<date+1> 00:00:00` in user_tz �� Unix timestamp
+- `day_end` = `<date+1> 00:00:00` in user_tz → Unix timestamp
 
 Call `slack_read_channel` with:
 - `channel_id`: the channel ID
@@ -494,7 +488,7 @@ message:
 
 - `HH:MM` = message timestamp converted to the user's timezone
 - `Display Name` = resolved from user name cache
-- Append ` ���` if the message was sent by `U07ENJD06T0` (the user)
+- Append ` ⭐` if the message was sent by `U07ENJD06T0` (the user)
 - Preserve the message text as-is. Convert Slack user references `<@U...>` to
   `@Display Name` using the cache. Convert channel references `<#C...|name>`
   to `#name`.
