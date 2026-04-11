@@ -119,6 +119,13 @@ pytest
 
 ---
 
+## Slack Scrape
+
+A Claude Code skill that scrapes your Slack activity into `raw/slack/` for
+wiki ingest.  See [SLACK-SCRAPE-SKILL.md](SLACK-SCRAPE-SKILL.md) for usage.
+
+---
+
 ## Inspiration
 
 Inspired by Vannevar Bush's *Memex* (1945) — a personal, curated knowledge
