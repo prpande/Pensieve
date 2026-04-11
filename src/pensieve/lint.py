@@ -114,7 +114,14 @@ def _normalize_index_reference(value: str) -> str:
 
 
 def _index_mentions(idx: Path) -> set[str]:
-    """Collect explicit page mentions from index.md via wikilinks and table rows."""
+    """Collect explicit page mentions from index.md via wikilinks and table rows.
+
+    Wikilinks (``[[stem]]`` / ``[[stem|alias]]``) are parsed by
+    :func:`outbound_links`.  Plain-text file references in table cells (e.g.
+    ``my-page.md``) are also recognised, but generic words like "Page" or
+    "Summary" from the header row are intentionally excluded so they cannot
+    cause false positives.
+    """
     mentions: set[str] = {
         _normalize_index_reference(target)
         for target in outbound_links(idx)
@@ -128,9 +135,14 @@ def _index_mentions(idx: Path) -> set[str]:
         if re.fullmatch(r"[\s|:-]+", stripped):
             continue
         for cell in stripped.split("|"):
-            normalized = _normalize_index_reference(cell)
-            if normalized:
-                mentions.add(normalized)
+            # Only treat cells that are unambiguous file references (end in
+            # ".md") as page mentions; this avoids picking up header-row words
+            # like "Page" or "Summary".
+            cell_stripped = cell.strip()
+            if cell_stripped.lower().endswith(".md"):
+                normalized = _normalize_index_reference(cell_stripped)
+                if normalized:
+                    mentions.add(normalized)
     return mentions
 
 

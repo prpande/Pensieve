@@ -99,10 +99,10 @@ def page_first_paragraph(path: Path) -> str:
     for para in paragraphs:
         # skip headings, YAML frontmatter delimiters, and horizontal rules
         if not para.startswith(("#", "---", "===")):
-            # strip inline markdown (bold, italic, links)
+            # strip inline markdown (bold, italic, regular links, wikilinks)
             clean = re.sub(r"\*+([^*]+)\*+", r"\1", para)
             clean = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", clean)
-            clean = re.sub(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]", r"\1", clean)
+            clean = WIKILINK_RE.sub(r"\1", clean)
             return textwrap.shorten(clean, width=160, placeholder="…")
     return ""
 
