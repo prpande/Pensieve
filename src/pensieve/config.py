@@ -77,3 +77,20 @@ def load_config() -> dict:
         )
 
     return data
+
+
+def get_wiki_root() -> Path:
+    """Return the configured wiki root, validated against disk.
+
+    Raises ConfigError if the config is missing/invalid OR if the configured
+    path does not exist, is not a directory, or does not contain a wiki/
+    subdirectory.
+    """
+    data = load_config()
+    wiki_root = Path(data["wiki_root"]).resolve()
+    if not wiki_root.is_dir() or not (wiki_root / "wiki").is_dir():
+        raise ConfigError(
+            f"Configured wiki_root is not a valid wiki: {wiki_root}. "
+            f"Re-run 'pensieve init' or fix {CONFIG_PATH}."
+        )
+    return wiki_root

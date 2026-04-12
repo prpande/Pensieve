@@ -137,3 +137,45 @@ def test_load_config_future_schema_version_raises(fake_home: Path, tmp_path: Pat
     with pytest.raises(ConfigError) as exc:
         cfg.load_config()
     assert "newer than this Pensieve" in str(exc.value)
+
+
+def test_get_wiki_root_returns_path(fake_home: Path, tmp_path: Path) -> None:
+    wiki_root = tmp_path / "mywiki"
+    (wiki_root / "wiki").mkdir(parents=True)
+    cfg.write_config(wiki_root)
+    result = cfg.get_wiki_root()
+    assert isinstance(result, Path)
+    assert result == wiki_root.resolve()
+
+
+def test_get_wiki_root_path_does_not_exist_raises(fake_home: Path, tmp_path: Path) -> None:
+    fake_home.parent.mkdir(parents=True, exist_ok=True)
+    fake_home.write_text(
+        f'schema_version = 1\nwiki_root = "{(tmp_path / "ghost").as_posix()}"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError) as exc:
+        cfg.get_wiki_root()
+    assert "not a valid wiki" in str(exc.value)
+
+
+def test_get_wiki_root_no_wiki_subdir_raises(fake_home: Path, tmp_path: Path) -> None:
+    wiki_root = tmp_path / "no-subdir"
+    wiki_root.mkdir()
+    cfg.write_config(wiki_root)
+    with pytest.raises(ConfigError) as exc:
+        cfg.get_wiki_root()
+    assert "not a valid wiki" in str(exc.value)
+
+
+def test_get_wiki_root_path_is_file_raises(fake_home: Path, tmp_path: Path) -> None:
+    not_a_dir = tmp_path / "afile.txt"
+    not_a_dir.write_text("hi")
+    fake_home.parent.mkdir(parents=True, exist_ok=True)
+    fake_home.write_text(
+        f'schema_version = 1\nwiki_root = "{not_a_dir.as_posix()}"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError) as exc:
+        cfg.get_wiki_root()
+    assert "not a valid wiki" in str(exc.value)
