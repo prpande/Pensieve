@@ -10,6 +10,11 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+try:
+    import tomllib  # Python 3.11+
+except ModuleNotFoundError:  # pragma: no cover
+    import tomli as tomllib  # type: ignore[no-redef]
+
 SCHEMA_VERSION = 1
 CONFIG_PATH = Path.home() / ".pensieve" / "config.toml"
 
@@ -39,3 +44,36 @@ def write_config(wiki_root: Path) -> None:
     except Exception:
         tmp_path.unlink(missing_ok=True)
         raise
+
+
+def load_config() -> dict:
+    """Load and validate the user-level Pensieve config.
+
+    Raises ConfigError with a human-friendly message on any problem.
+    Validation here is purely about the config file itself — it does NOT
+    check that wiki_root exists on disk. Use get_wiki_root() for that.
+    """
+    if not CONFIG_PATH.exists():
+        raise ConfigError(
+            "Pensieve is not initialised. Run 'pensieve init <path>' first."
+        )
+    try:
+        with CONFIG_PATH.open("rb") as fh:
+            data = tomllib.load(fh)
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigError(f"Invalid config at {CONFIG_PATH}: {exc}") from exc
+
+    schema_version = data.get("schema_version", 0)
+    if isinstance(schema_version, int) and schema_version > SCHEMA_VERSION:
+        raise ConfigError(
+            f"Config schema version {schema_version} is newer than this "
+            f"Pensieve ({SCHEMA_VERSION}). Upgrade pensieve."
+        )
+
+    wiki_root = data.get("wiki_root")
+    if not wiki_root:
+        raise ConfigError(
+            "Config is missing 'wiki_root'. Re-run 'pensieve init <path>'."
+        )
+
+    return data

@@ -86,3 +86,54 @@ def test_write_config_cleans_up_temp_on_failure(
 
     leftovers = list(fake_home.parent.glob("*.tmp"))
     assert leftovers == []
+
+
+def test_load_config_missing_file_raises(fake_home: Path) -> None:
+    with pytest.raises(ConfigError) as exc:
+        cfg.load_config()
+    assert "not initialised" in str(exc.value)
+    assert "pensieve init" in str(exc.value)
+
+
+def test_load_config_round_trip(fake_home: Path, tmp_path: Path) -> None:
+    wiki_root = tmp_path / "mywiki"
+    wiki_root.mkdir()
+    cfg.write_config(wiki_root)
+    data = cfg.load_config()
+    assert data["schema_version"] == 1
+    assert data["wiki_root"] == wiki_root.as_posix()
+
+
+def test_load_config_malformed_toml_raises(fake_home: Path) -> None:
+    fake_home.parent.mkdir(parents=True, exist_ok=True)
+    fake_home.write_text("this is = = not toml", encoding="utf-8")
+    with pytest.raises(ConfigError) as exc:
+        cfg.load_config()
+    assert "Invalid config" in str(exc.value)
+
+
+def test_load_config_missing_wiki_root_raises(fake_home: Path) -> None:
+    fake_home.parent.mkdir(parents=True, exist_ok=True)
+    fake_home.write_text("schema_version = 1\n", encoding="utf-8")
+    with pytest.raises(ConfigError) as exc:
+        cfg.load_config()
+    assert "missing 'wiki_root'" in str(exc.value)
+
+
+def test_load_config_empty_wiki_root_raises(fake_home: Path) -> None:
+    fake_home.parent.mkdir(parents=True, exist_ok=True)
+    fake_home.write_text('schema_version = 1\nwiki_root = ""\n', encoding="utf-8")
+    with pytest.raises(ConfigError) as exc:
+        cfg.load_config()
+    assert "missing 'wiki_root'" in str(exc.value)
+
+
+def test_load_config_future_schema_version_raises(fake_home: Path, tmp_path: Path) -> None:
+    fake_home.parent.mkdir(parents=True, exist_ok=True)
+    fake_home.write_text(
+        f'schema_version = 99\nwiki_root = "{tmp_path.as_posix()}"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(ConfigError) as exc:
+        cfg.load_config()
+    assert "newer than this Pensieve" in str(exc.value)
