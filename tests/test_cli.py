@@ -1,11 +1,13 @@
 """Tests for the pensieve CLI (click commands)."""
 
+import pytest
 from pathlib import Path
 
 from click.testing import CliRunner
 
 from pensieve.cli import main
 from pensieve.wiki import init_wiki, wiki_dir, write_page, log_path, index_path
+from pensieve import config as cfg
 
 
 # ---------------------------------------------------------------------------
@@ -22,7 +24,7 @@ def make_runner() -> CliRunner:
 # ---------------------------------------------------------------------------
 
 
-def test_cli_init_creates_structure(tmp_path: Path) -> None:
+def test_cli_init_creates_structure(fake_home: Path, tmp_path: Path) -> None:
     runner = make_runner()
     result = runner.invoke(main, ["init", str(tmp_path)])
     assert result.exit_code == 0
@@ -128,3 +130,59 @@ def test_cli_rebuild_index(wiki_root: Path) -> None:
     assert result.exit_code == 0
     content = index_path(wiki_root).read_text(encoding="utf-8")
     assert "new-page" in content.lower()
+
+
+# ---------------------------------------------------------------------------
+# fake_home fixture + init config tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def fake_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    fake_config = tmp_path / "home" / ".pensieve" / "config.toml"
+    monkeypatch.setattr(cfg, "CONFIG_PATH", fake_config)
+    return fake_config
+
+
+def test_cli_init_writes_config(fake_home: Path, tmp_path: Path) -> None:
+    target = tmp_path / "mywiki"
+    runner = make_runner()
+    result = runner.invoke(main, ["init", str(target)])
+    assert result.exit_code == 0
+    assert fake_home.exists()
+    assert target.resolve().as_posix() in fake_home.read_text(encoding="utf-8")
+    assert "Registered as active wiki" in result.output
+
+
+def test_cli_init_prompts_when_existing_config_points_elsewhere(
+    fake_home: Path, tmp_path: Path
+) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    runner = make_runner()
+    runner.invoke(main, ["init", str(first)])
+    # Decline overwrite
+    result = runner.invoke(main, ["init", str(second)], input="n\n")
+    assert "Existing config points to" in result.output
+    assert first.resolve().as_posix() in fake_home.read_text(encoding="utf-8")
+
+
+def test_cli_init_force_overwrites_without_prompt(
+    fake_home: Path, tmp_path: Path
+) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    runner = make_runner()
+    runner.invoke(main, ["init", str(first)])
+    result = runner.invoke(main, ["init", "--force", str(second)])
+    assert result.exit_code == 0
+    assert second.resolve().as_posix() in fake_home.read_text(encoding="utf-8")
+
+
+def test_cli_init_same_root_does_not_prompt(fake_home: Path, tmp_path: Path) -> None:
+    target = tmp_path / "mywiki"
+    runner = make_runner()
+    runner.invoke(main, ["init", str(target)])
+    result = runner.invoke(main, ["init", str(target)])
+    assert result.exit_code == 0
+    assert "Existing config points to" not in result.output

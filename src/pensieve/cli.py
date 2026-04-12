@@ -62,17 +62,39 @@ def main() -> None:
 
 @main.command()
 @click.argument("path", default=".", type=click.Path(file_okay=False, dir_okay=True, path_type=Path))
-def init(path: Path) -> None:
+@click.option("--force", is_flag=True, default=False, help="Overwrite existing config without prompting.")
+def init(path: Path, force: bool) -> None:
     """Initialise a new wiki inside PATH (default: current directory).
 
     Creates wiki/, raw/, raw/assets/ directories and seeds wiki/index.md
-    and wiki/log.md if they do not already exist.
+    and wiki/log.md if they do not already exist. Also registers PATH as
+    the active wiki in ~/.pensieve/config.toml.
     """
+    from pensieve import config as cfg
+
     root = path.resolve()
     init_wiki(root)
+
+    # Overwrite-protection: if a config exists pointing somewhere else,
+    # confirm before clobbering it.
+    if cfg.CONFIG_PATH.exists() and not force:
+        try:
+            existing = cfg.load_config()
+            existing_root = Path(existing["wiki_root"]).resolve()
+            if existing_root != root:
+                click.echo(f"Existing config points to {existing_root}.")
+                if not click.confirm("Overwrite?", default=False):
+                    click.echo("Aborted. Wiki scaffold left in place; config unchanged.")
+                    return
+        except Exception:
+            # If the existing config is unreadable, fall through and overwrite.
+            pass
+
+    cfg.write_config(root)
     click.echo(f"✓ Wiki initialised at {root}")
     click.echo(f"  wiki/   → {wiki_dir(root)}")
     click.echo(f"  raw/    → {root / 'raw'}")
+    click.echo(f"✓ Registered as active wiki in {cfg.CONFIG_PATH}")
     click.echo("  Next step: copy CLAUDE.md / AGENTS.md from the repo root into your project.")
 
 
