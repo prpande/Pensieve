@@ -15,7 +15,7 @@
 ### Task 1: Create the skill file with frontmatter and argument parsing
 
 **Files:**
-- Create: `C:\Users\pratyush.pande\.claude\skills\slack-scrape\SKILL.md`
+- Create: `~/.claude/skills/slack-scrape/SKILL.md`
 
 This task creates the skill skeleton: frontmatter, description, argument parsing instructions, and the top-level routing logic (Phase 1 vs Phase 2).
 
@@ -28,7 +28,7 @@ mkdir -p "$HOME/.claude/skills/slack-scrape"
 
 - [ ] **Step 2: Write the skill file with frontmatter and argument parser**
 
-Create `C:\Users\pratyush.pande\.claude\skills\slack-scrape\SKILL.md` with:
+Create `~/.claude/skills/slack-scrape/SKILL.md` with:
 
 ```markdown
 ---
@@ -65,10 +65,16 @@ Parse the user's input to determine which phase to run:
 - If the args contain `--fetch`, run Phase 2 (fetch workflow below)
 - Otherwise, run Phase 1 (discovery workflow below)
 
-## Constants
+## Runtime Identity
 
-- `USER_ID`: `U07ENJD06T0`
-- `USERNAME`: `pratyush.pande`
+The skill must never hardcode user identity. At the start of every run, call
+`slack_read_user_profile` with no arguments to resolve:
+- `USER_ID` (from the `User ID` field)
+- `USERNAME` (from the `Username` field)
+- `DISPLAY_NAME` (from the `Display Name` field)
+- `TZ` (from the `Timezone` field, default `UTC`)
+
+Use these wherever the skill references the current user.
 ```
 
 - [ ] **Step 3: Verify the skill is discoverable**
@@ -95,7 +101,7 @@ git commit --allow-empty -m "feat: add slack-scrape skill skeleton with argument
 ### Task 2: Implement Phase 1 — Discovery workflow
 
 **Files:**
-- Modify: `C:\Users\pratyush.pande\.claude\skills\slack-scrape\SKILL.md`
+- Modify: `~/.claude/skills/slack-scrape/SKILL.md`
 
 This task adds the complete Phase 1 instructions to the skill: search queries, deduplication, date bucketing, index writing, and summary output.
 
@@ -150,7 +156,7 @@ Run three searches using `slack_search_public_and_private`. For each query:
 
 **Query 1 — Your messages:**
 ```
-query: "from:<@U07ENJD06T0> after:YYYY-MM-DD before:YYYY-MM-DD"
+query: "from:<@USER_ID> after:YYYY-MM-DD before:YYYY-MM-DD"
 ```
 (where after = start-date, before = end-date + 1 day)
 
@@ -158,7 +164,7 @@ If `--channel` is specified, add `in:<channel-name>` to the query.
 
 **Query 2 — Mentions of you:**
 ```
-query: "to:<@U07ENJD06T0> after:YYYY-MM-DD before:YYYY-MM-DD"
+query: "to:<@USER_ID> after:YYYY-MM-DD before:YYYY-MM-DD"
 ```
 
 If `--channel` is specified, add `in:<channel-name>` to the query.
@@ -195,7 +201,7 @@ From all collected results:
 
 ```json
 {
-  "user_id": "U07ENJD06T0",
+  "user_id": "<USER_ID resolved at runtime>",
   "user_tz": "<timezone from step 1>",
   "date_range": ["<start-date>", "<end-date>"],
   "created_at": "<current ISO datetime>",
@@ -277,7 +283,7 @@ git commit -am "feat: add Phase 1 discovery workflow to slack-scrape skill"
 ### Task 3: Implement Phase 2 — Fetch workflow
 
 **Files:**
-- Modify: `C:\Users\pratyush.pande\.claude\skills\slack-scrape\SKILL.md`
+- Modify: `~/.claude/skills/slack-scrape/SKILL.md`
 
 This task adds the complete Phase 2 instructions: reading the index, fetching threads and channel context, resolving users, reading canvases, writing markdown, and updating the index.
 
@@ -294,7 +300,7 @@ in the cache. This avoids redundant MCP calls.
 
 Initialize the cache with:
 ```json
-{"U07ENJD06T0": "Pratyush Pande"}
+{"<USER_ID>": "<DISPLAY_NAME>"}
 ```
 ```
 
@@ -443,7 +449,7 @@ git commit -am "feat: add Phase 2 fetch workflow to slack-scrape skill"
 ### Task 4: Add the output markdown format template
 
 **Files:**
-- Modify: `C:\Users\pratyush.pande\.claude\skills\slack-scrape\SKILL.md`
+- Modify: `~/.claude/skills/slack-scrape/SKILL.md`
 
 This task adds the exact markdown template that Phase 2 Step 3f uses to assemble output files.
 
@@ -466,7 +472,7 @@ channel_id: <channel_id>
 channel_type: <public_channel|private_channel|im|mpim>
 date: <YYYY-MM-DD>
 scrape_range: <start-date> to <end-date>
-user: pratyush.pande
+user: <USERNAME at runtime>
 ---
 ```
 
@@ -488,7 +494,7 @@ message:
 
 - `HH:MM` = message timestamp converted to the user's timezone
 - `Display Name` = resolved from user name cache
-- Append ` ⭐` if the message was sent by `U07ENJD06T0` (the user)
+- Append ` ⭐` if the message's `user_id` equals `USER_ID` (the runtime identity)
 - Preserve the message text as-is. Convert Slack user references `<@U...>` to
   `@Display Name` using the cache. Convert channel references `<#C...|name>`
   to `#name`.
@@ -580,7 +586,7 @@ In a Claude Code session, run:
 - [ ] **Step 2: Verify index output**
 
 Read `raw/slack/scrape-2026-04-10_2026-04-10/index.json` and verify:
-- `user_id` is `U07ENJD06T0`
+- `user_id` matches the authenticated user from `slack_read_user_profile`
 - `date_range` is `["2026-04-10", "2026-04-10"]`
 - `channels` map has entries with valid `channel_id`, `channel_name`, `channel_slug`
 - `hits` arrays have `ts`, `type`, `date`, `preview` fields

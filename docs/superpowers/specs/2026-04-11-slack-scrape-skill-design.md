@@ -73,7 +73,7 @@ The skill operates in two phases — **Discover & Index** (cheap) and **Fetch**
 - The `channel-id` suffix makes filenames deterministic, filesystem-safe, and
   stable across renames/collisions (including DMs/group DMs)
 
-**Hardcoded:** User ID `U07ENJD06T0` (pratyush.pande). This is a personal tool.
+**Runtime identity:** The skill resolves the current user's ID, username, display name, and timezone dynamically by calling `slack_read_user_profile` at the start of each run. No user identifiers are hardcoded in the skill, spec, or plan.
 
 ---
 
@@ -85,8 +85,8 @@ All use `slack_search_public_and_private` with `response_format: "concise"`,
 `include_context: false`, sorted by `timestamp`, paginating via `cursor` until
 exhausted.
 
-1. **Your messages:** `from:<@U07ENJD06T0> after:<start> before:<end+1>`
-2. **Mentions of you:** `to:<@U07ENJD06T0> after:<start> before:<end+1>`
+1. **Your messages:** `from:<@USER_ID> after:<start> before:<end+1>`
+2. **Mentions of you:** `to:<@USER_ID> after:<start> before:<end+1>`
 3. **Your reactions:** `hasmy::*: after:<start> before:<end+1>`
    - If wildcard reaction syntax is unsupported, log a warning and skip.
 
@@ -103,7 +103,7 @@ timestamp. The index status map has one entry per channel per day.
 
 ```json
 {
-  "user_id": "U07ENJD06T0",
+  "user_id": "<resolved at runtime>",
   "date_range": ["2026-04-07", "2026-04-11"],
   "created_at": "2026-04-11T10:30:00Z",
   "channels": {
@@ -209,7 +209,7 @@ channel_id: C0ABC123
 channel_type: public_channel
 date: 2026-04-07
 scrape_range: 2026-04-07 to 2026-04-11
-user: pratyush.pande
+user: <resolved at runtime>
 ---
 
 # engineering-general — 2026-04-07
