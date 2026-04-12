@@ -33,5 +33,9 @@ def write_config(wiki_root: Path) -> None:
         f"schema_version = {SCHEMA_VERSION}\n"
         f'wiki_root = "{wiki_root.as_posix()}"\n'
     )
-    tmp_path.write_text(contents, encoding="utf-8")
-    os.replace(tmp_path, CONFIG_PATH)
+    try:
+        tmp_path.write_text(contents, encoding="utf-8")
+        os.replace(tmp_path, CONFIG_PATH)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise

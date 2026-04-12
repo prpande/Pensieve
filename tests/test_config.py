@@ -63,3 +63,26 @@ def test_write_config_no_temp_file_left_behind(fake_home: Path, tmp_path: Path) 
     cfg.write_config(wiki_root)
     leftovers = list(fake_home.parent.glob("*.tmp"))
     assert leftovers == []
+
+
+def test_write_config_cleans_up_temp_on_failure(
+    fake_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If write or replace fails, the temp file must not be left on disk."""
+    import os as _os
+
+    wiki_root = tmp_path / "mywiki"
+    wiki_root.mkdir()
+
+    real_replace = _os.replace
+
+    def boom(src, dst):
+        raise OSError("simulated replace failure")
+
+    monkeypatch.setattr("pensieve.config.os.replace", boom)
+
+    with pytest.raises(OSError, match="simulated replace failure"):
+        cfg.write_config(wiki_root)
+
+    leftovers = list(fake_home.parent.glob("*.tmp"))
+    assert leftovers == []
