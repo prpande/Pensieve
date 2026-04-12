@@ -199,3 +199,39 @@ def test_cli_init_same_root_does_not_prompt(fake_home: Path, tmp_path: Path) -> 
     result = runner.invoke(main, ["init", str(target)])
     assert result.exit_code == 0
     assert "Existing config points to" not in result.output
+
+
+# ---------------------------------------------------------------------------
+# root
+# ---------------------------------------------------------------------------
+
+
+def test_cli_root_prints_configured_path(fake_home: Path, tmp_path: Path) -> None:
+    target = tmp_path / "mywiki"
+    runner = make_runner()
+    runner.invoke(main, ["init", str(target)])
+    result = runner.invoke(main, ["root"])
+    assert result.exit_code == 0
+    assert result.output.strip() == target.resolve().as_posix()
+
+
+def test_cli_root_no_config_exits_nonzero(fake_home: Path) -> None:
+    runner = make_runner()
+    result = runner.invoke(main, ["root"])
+    assert result.exit_code == 1
+    # Click's CliRunner merges stderr into output by default
+    assert "not initialised" in result.output
+
+
+def test_cli_root_invalid_wiki_root_exits_nonzero(
+    fake_home: Path, tmp_path: Path
+) -> None:
+    fake_home.parent.mkdir(parents=True, exist_ok=True)
+    fake_home.write_text(
+        f'schema_version = 1\nwiki_root = "{(tmp_path / "ghost").as_posix()}"\n',
+        encoding="utf-8",
+    )
+    runner = make_runner()
+    result = runner.invoke(main, ["root"])
+    assert result.exit_code == 1
+    assert "not a valid wiki" in result.output

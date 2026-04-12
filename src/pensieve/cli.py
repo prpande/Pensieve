@@ -205,3 +205,27 @@ def rebuild_index_cmd(root: Path | None) -> None:
     effective_root = root or find_wiki_root()
     rebuild_index(effective_root)
     click.echo(f"✓ index.md rebuilt at {wiki_dir(effective_root) / 'index.md'}")
+
+
+# ---------------------------------------------------------------------------
+# root
+# ---------------------------------------------------------------------------
+
+
+@main.command()
+def root() -> None:
+    """Print the configured wiki root to stdout.
+
+    This is the integration point for external tools (e.g. the slack-scrape
+    skill) that need the wiki location independent of cwd. On success the
+    absolute path is printed to stdout with no decoration. On any config
+    error the message is printed to stderr and the command exits 1.
+    """
+    from pensieve.config import ConfigError, get_wiki_root
+
+    try:
+        wiki_root_path = get_wiki_root()
+    except ConfigError as exc:
+        click.echo(str(exc), err=True)
+        sys.exit(1)
+    click.echo(wiki_root_path.as_posix())
