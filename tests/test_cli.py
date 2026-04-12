@@ -25,6 +25,7 @@ def make_runner() -> CliRunner:
 
 
 def test_cli_init_creates_structure(fake_home: Path, tmp_path: Path) -> None:
+    # fake_home redirects CONFIG_PATH under tmp_path; prevents writes to real ~/.pensieve.
     runner = make_runner()
     result = runner.invoke(main, ["init", str(tmp_path)])
     assert result.exit_code == 0
@@ -163,8 +164,20 @@ def test_cli_init_prompts_when_existing_config_points_elsewhere(
     runner.invoke(main, ["init", str(first)])
     # Decline overwrite
     result = runner.invoke(main, ["init", str(second)], input="n\n")
+    assert result.exit_code == 0
     assert "Existing config points to" in result.output
     assert first.resolve().as_posix() in fake_home.read_text(encoding="utf-8")
+
+
+def test_cli_init_accepts_overwrite_prompt(fake_home: Path, tmp_path: Path) -> None:
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    runner = make_runner()
+    runner.invoke(main, ["init", str(first)])
+    result = runner.invoke(main, ["init", str(second)], input="y\n")
+    assert result.exit_code == 0
+    assert second.resolve().as_posix() in fake_home.read_text(encoding="utf-8")
+    assert "Registered as active wiki" in result.output
 
 
 def test_cli_init_force_overwrites_without_prompt(

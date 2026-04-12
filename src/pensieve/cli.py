@@ -86,8 +86,8 @@ def init(path: Path, force: bool) -> None:
                 if not click.confirm("Overwrite?", default=False):
                     click.echo("Aborted. Wiki scaffold left in place; config unchanged.")
                     return
-        except Exception:
-            # If the existing config is unreadable, fall through and overwrite.
+        except cfg.ConfigError:
+            # Existing config is unreadable; fall through and overwrite.
             pass
 
     cfg.write_config(root)
