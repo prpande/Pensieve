@@ -69,23 +69,34 @@ wiki_root = "C:/src/Pensieve"
 ```
 
 - `schema_version` — integer. Future versions can migrate or refuse to load.
-- `wiki_root` — absolute path to the wiki directory (the one containing
-  `wiki/`, `raw/`, and `CLAUDE.md`).
+- `wiki_root` — absolute path to the wiki directory (the one created by
+  `pensieve init`, containing a `wiki/` subdirectory). A schema file
+  (`CLAUDE.md` or `AGENTS.md`) is *not* required for validity, since
+  `pensieve init` does not create or copy schema files — they are added
+  manually as a follow-up step. Validation checks only that the path
+  exists and contains a `wiki/` directory.
 
 **Reading rules:**
 
-- Use stdlib `tomllib` (Python 3.11+).
-- Missing file → `Pensieve is not initialized. Run 'pensieve init <path>' first.`
+- TOML parsing: use stdlib `tomllib` on Python 3.11+, fall back to the
+  `tomli` backport package on Python 3.9–3.10. The project's
+  `requires-python = ">=3.9"` constraint must not be raised by this change.
+  Add `tomli; python_version < "3.11"` to the project dependencies.
+- Missing file → `Pensieve is not initialised. Run 'pensieve init <path>' first.`
 - Missing or empty `wiki_root` → `Config is missing 'wiki_root'. Re-run 'pensieve init <path>'.`
-- `wiki_root` exists in config but path does not exist on disk →
-  `Configured wiki_root does not exist: <path>. Re-run 'pensieve init' or fix ~/.pensieve/config.toml.`
+- `wiki_root` set in config but path does not exist on disk, or is not a
+  directory, or does not contain a `wiki/` subdirectory →
+  `Configured wiki_root is not a valid wiki: <path>. Re-run 'pensieve init' or fix ~/.pensieve/config.toml.`
 - `schema_version` greater than supported →
   `Config schema version <N> is newer than this Pensieve (<M>). Upgrade pensieve.`
 
 **Writing rules:**
 
 - `pensieve init` is the only writer.
-- Atomic write: write to `config.toml.tmp`, then rename.
+- Atomic write: write to `config.toml.tmp` in the same directory as the
+  destination, then call `os.replace()` to atomically replace the existing
+  file. `os.replace()` is the cross-platform primitive — plain `os.rename`
+  is not atomic on Windows when the destination already exists.
 - Parent dir `~/.pensieve/` is created if missing.
 
 ## CLI changes
@@ -204,10 +215,10 @@ One coherent error story across both layers.
 
 | Situation | Message | Exit |
 |---|---|---|
-| `~/.pensieve/config.toml` missing | `Pensieve is not initialized. Run 'pensieve init <path>' first.` | 1 |
+| `~/.pensieve/config.toml` missing | `Pensieve is not initialised. Run 'pensieve init <path>' first.` | 1 |
 | File exists, malformed TOML | `Invalid config at ~/.pensieve/config.toml: <parse error>` | 1 |
 | `wiki_root` missing/empty | `Config is missing 'wiki_root'. Re-run 'pensieve init <path>'.` | 1 |
-| `wiki_root` path does not exist on disk | `Configured wiki_root does not exist: <path>. Re-run 'pensieve init' or fix ~/.pensieve/config.toml.` | 1 |
+| `wiki_root` path is not a valid wiki directory | `Configured wiki_root is not a valid wiki: <path>. Re-run 'pensieve init' or fix ~/.pensieve/config.toml.` | 1 |
 | `schema_version` greater than supported | `Config schema version <N> is newer than this Pensieve (<M>). Upgrade pensieve.` | 1 |
 | `pensieve init` finds existing config pointing elsewhere | Prompt: `Existing config points to <old>. Overwrite? [y/N]` (or `--force` to skip) | 0/1 |
 
