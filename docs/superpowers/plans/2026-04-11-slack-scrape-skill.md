@@ -185,7 +185,7 @@ From all collected results:
    - `text`: first ~100 characters as preview
    - `type`: classify as `message` (from query 1), `mention` (query 2), or `reaction` (query 3)
 
-2. **Deduplicate** by `(channel_id, ts)` pair. If a message appears in multiple queries, keep the first occurrence but merge the types (e.g. a message you sent that also mentions you → type remains `message`).
+2. **Deduplicate** by `(channel_id, ts)` pair. If a message appears in multiple queries, keep a single entry with `type` set by this precedence: `message` > `mention` > `reaction`. Example: a message you sent that also mentions you → `type = "message"` (message wins). A message where you were mentioned AND you reacted → `type = "mention"` (mention wins over reaction).
 
 3. **Slugify** each channel name using the helper above.
 
