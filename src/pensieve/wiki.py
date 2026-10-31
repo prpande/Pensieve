@@ -29,13 +29,23 @@ LOG_HEADER_PREFIX = "## ["
 
 
 def find_wiki_root(start: Path | None = None) -> Path:
-    """Walk up from *start* (default: cwd) to find the wiki root directory.
+    """Return the wiki root, preferring the configured root when available.
 
-    The root is the directory that contains both a ``wiki/`` sub-directory
-    and either a ``CLAUDE.md`` or ``AGENTS.md`` file.  If no such directory
-    is found the function returns the original *start* directory so callers
-    can still operate relative to wherever they are.
+    Resolution order:
+      1. ~/.pensieve/config.toml -> wiki_root (if valid).
+      2. Walk up from *start* (default: cwd) looking for a directory that
+         contains both a wiki/ subdirectory and a CLAUDE.md or AGENTS.md
+         schema file.
+      3. Fall back to *start* itself so callers can still operate.
     """
+    # Local import to avoid a wiki<->config import cycle at module load.
+    from pensieve.config import ConfigError, get_wiki_root
+
+    try:
+        return get_wiki_root()
+    except ConfigError:
+        pass
+
     current = (start or Path.cwd()).resolve()
     for candidate in [current, *current.parents]:
         has_wiki = (candidate / WIKI_DIR_NAME).is_dir()

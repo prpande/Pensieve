@@ -4,12 +4,14 @@ from pathlib import Path
 
 import pytest
 
+from pensieve import config as cfg
 from pensieve.wiki import (
     INDEX_FILE,
     LOG_FILE,
     all_wiki_pages,
     append_log_entry,
     build_index,
+    find_wiki_root,
     init_wiki,
     log_path,
     outbound_links,
@@ -179,3 +181,40 @@ def test_rebuild_index_excludes_index_and_log(wiki_root: Path) -> None:
     # index.md should not link to itself
     assert "[[index]]" not in content
     assert "[[log]]" not in content
+
+
+# ---------------------------------------------------------------------------
+# find_wiki_root
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def fake_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    fake_config = tmp_path / "home" / ".pensieve" / "config.toml"
+    monkeypatch.setattr(cfg, "CONFIG_PATH", fake_config)
+    return fake_config
+
+
+def test_find_wiki_root_prefers_configured_root_over_cwd(
+    fake_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configured = tmp_path / "configured-wiki"
+    init_wiki(configured)
+    cfg.write_config(configured)
+
+    unrelated = tmp_path / "unrelated"
+    unrelated.mkdir()
+    monkeypatch.chdir(unrelated)
+
+    assert find_wiki_root() == configured.resolve()
+
+
+def test_find_wiki_root_falls_back_to_cwd_walk_when_no_config(
+    fake_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    walked = tmp_path / "walked-wiki"
+    init_wiki(walked)
+    (walked / "CLAUDE.md").write_text("# schema")
+
+    monkeypatch.chdir(walked)
+    assert find_wiki_root() == walked.resolve()
